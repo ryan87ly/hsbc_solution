@@ -24,7 +24,6 @@ public class RingBufferObjectPool implements ObjectPool {
             return messagePoller;
         });
         messageHandler = ThreadLocal.withInitial(MessageEventHandler::new);
-
     }
 
     @Override
