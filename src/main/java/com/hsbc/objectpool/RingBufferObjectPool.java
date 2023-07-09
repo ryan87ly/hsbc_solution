@@ -8,6 +8,7 @@ import com.lmax.disruptor.RingBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class RingBufferObjectPool implements ObjectPool {
+    private static final long UNSET_SEQUENCE = -1;
     private final RingBuffer<Message> ringBuffer;
     private final ThreadLocal<AtomicLong> acquiredSequence;
     private final ThreadLocal<EventPoller<Message>> poller;
@@ -17,7 +18,7 @@ public class RingBufferObjectPool implements ObjectPool {
         this.ringBuffer = RingBuffer.createMultiProducer(
                 Message::new,
                 bufferSize);
-        acquiredSequence = ThreadLocal.withInitial(() -> new AtomicLong(-1));
+        acquiredSequence = ThreadLocal.withInitial(() -> new AtomicLong(UNSET_SEQUENCE));
         poller = ThreadLocal.withInitial(() -> {
             EventPoller<Message> messagePoller = this.ringBuffer.newPoller();
             this.ringBuffer.addGatingSequences(messagePoller.getSequence());
@@ -47,14 +48,14 @@ public class RingBufferObjectPool implements ObjectPool {
     @Override
     public long release(Message m) {
         long sequence = acquiredSequence.get().get();
-        if (sequence == -1) {
+        if (sequence == UNSET_SEQUENCE) {
             throw new RingBufferOperationException("No acquired object");
         }
         if (ringBuffer.get(sequence) != m) {
             throw new RingBufferOperationException("Released object is not the same as acquired object");
         }
         ringBuffer.publish(sequence);
-        acquiredSequence.get().set(-1);
+        acquiredSequence.get().set(UNSET_SEQUENCE);
         return (int) sequence;
     }
 

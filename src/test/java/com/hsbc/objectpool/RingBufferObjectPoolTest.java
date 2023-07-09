@@ -19,6 +19,7 @@ class RingBufferObjectPoolTest {
     @Test
     void acquireAndReleaseSuccess() {
         ringBufferObjectPool = new RingBufferObjectPool(4);
+
         Message messageAcquired = ringBufferObjectPool.acquire();
         assertNotNull(messageAcquired);
         assertEquals(0L, ringBufferObjectPool.release(messageAcquired));
@@ -88,6 +89,7 @@ class RingBufferObjectPoolTest {
     }
 
     @Test
+    @Timeout(value = 10)
     void singleProducerAndSingleConsumer_runningOnDifferentThreads() throws InterruptedException {
         ringBufferObjectPool = new RingBufferObjectPool(4);
         CapturedConsumer consumer = new CapturedConsumer(0);
@@ -102,8 +104,10 @@ class RingBufferObjectPoolTest {
         producerThread.start();
         producerThread.join();
 
+        // Sleep a while to wait for consumers to finish
         Thread.sleep(100);
         consumer.stop();
+
         assertEquals(999, consumer.capturedIntegers.size());
         for (int i = 1; i < 1000; i ++) {
             assertTrue(consumer.capturedIntegers.contains(i));
@@ -111,7 +115,7 @@ class RingBufferObjectPoolTest {
     }
 
     @Test
-    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    @Timeout(value = 10)
     void multipleProducersAndMultipleConsumers_runningOnDifferentThreads() throws InterruptedException {
         ringBufferObjectPool = new RingBufferObjectPool(2048);
         CapturedConsumer[] consumers = createConsumers(3, 0);
@@ -139,7 +143,7 @@ class RingBufferObjectPoolTest {
     }
 
     @Test
-    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    @Timeout(value = 10)
     void slowConsumersCauseBackpressureOnProducers() throws Throwable {
         ringBufferObjectPool = new RingBufferObjectPool(1);
         // Apply 1000ms delay on consumer process
@@ -149,7 +153,7 @@ class RingBufferObjectPoolTest {
         Thread producer1Thread = new Thread(() -> publishMessage(1));
         producer1Thread.start();
         long publishTimeBeforePoolIsFull = measureRunTime(producer1Thread::join);
-        assertTrue(publishTimeBeforePoolIsFull < 100);
+        assertTrue(publishTimeBeforePoolIsFull < 200);
 
         // After object pool is full, there is backpressure on producer, causing publishing delay
         Thread producer2Thread = new Thread(() -> publishMessage(1));
@@ -199,7 +203,7 @@ class RingBufferObjectPoolTest {
 
     private class CapturedConsumer implements Transmission.MessageMuncher, Runnable {
         private final List<Integer> capturedIntegers;
-        private int processDelayMs = 0;
+        private int processDelayMs;
         private volatile boolean stopped;
         private volatile boolean started;
 

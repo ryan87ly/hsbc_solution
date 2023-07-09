@@ -6,9 +6,11 @@ import com.hsbc.output.ConsoleOutput;
 import com.hsbc.output.Output;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -31,6 +33,7 @@ public class IntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10)
     void publishAndConsume() throws InterruptedException {
         Consumer consumer = new Consumer(transmission, output);
         Thread consumerThread = new Thread(() -> {
@@ -48,6 +51,7 @@ public class IntegrationTest {
 
         // Sleep a while for the consumers to process messages
         Thread.sleep(100);
+
         assertEquals(3, output.capturedMessages.size());
         assertEquals(messagesForTest[0], output.capturedMessages.get(0));
         assertEquals(messagesForTest[1], output.capturedMessages.get(1));
@@ -57,6 +61,7 @@ public class IntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10)
     void multipleConsumers() throws InterruptedException {
         CapturedOutput consumer1Output = new CapturedOutput(new ConsoleOutput());
         Consumer consumer1 = new Consumer(transmission, consumer1Output);
@@ -83,6 +88,7 @@ public class IntegrationTest {
 
         // Sleep a while for the consumers to process messages
         Thread.sleep(100);
+
         assertEquals(3, consumer1Output.capturedMessages.size());
         assertEquals(messagesForTest[0], consumer1Output.capturedMessages.get(0));
         assertEquals(messagesForTest[1], consumer1Output.capturedMessages.get(1));
@@ -105,7 +111,7 @@ public class IntegrationTest {
         return m;
     }
 
-    private class CapturedOutput implements Output {
+    private static class CapturedOutput implements Output {
         private final Output base;
         private final List<Message> capturedMessages;
 
